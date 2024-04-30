@@ -20,7 +20,7 @@ async function get_token_price() {
     return { eth_price, usdc_price, USDT_price, dai_price };
 };
 
-async function getTokenBalance(account: any, tokenContract: any, decimals: number) {
+async function getTokenBalance(account: any, tokenContract: any, decimals: bigint) {
     const tokenBalance = await tokenContract.balanceOf(account.address);
     const tokenBalanceBN = uint256.uint256ToBN(tokenBalance.balance);
     return Number(formatBalance(tokenBalanceBN, decimals));
@@ -49,13 +49,15 @@ async function findTokenWithMaxBalance(account: any, token_list: any[]) {
 
 async function accountBalance() {
     // Defines the provider
-    const provider = new RpcProvider({ nodeUrl: constants.NetworkName.SN_MAIN });
+    const provider = new RpcProvider(
+        { nodeUrl: config.rpcUrl }
+    );
     //const provider = new RpcProvider({ nodeUrl: "https://starknet-mainnet.infura.io/v3/" + "YOUR_API_KEY" });
     await provider.getChainId();
 
     // Applies the account with private key and account address
     const privateKey = config.privateKey;
-    const accountAddress = "YOUR_ACCOUNT_ADDRESS";
+    const accountAddress =config.publicKey
     
     // Or you can write down your private key. If you activate that one, please delete the code(line:13).
     //const privateKey = "YOUR_PRIVATE_KEY";
@@ -120,10 +122,11 @@ async function main(
         tokenInAddress,
         tokenOutAddress,
     );
-
+    let input_amount = 0;
+    let output_amount = 0;
     if (route.success) {
-        const input_amount = formatUnits((route.inputAmount), tokenInDecimals);
-        const output_amount = formatUnits((route.outputAmount), tokenOutDecimals);
+        input_amount = Number(formatUnits((route.inputAmount), tokenInDecimals))
+        output_amount = Number(formatUnits((route.outputAmount), tokenOutDecimals))
     } else {
         console.error('Failed to get the route');
     }
@@ -226,7 +229,7 @@ async function findbest(
     const validResults = results.filter(result => result.route_result !== null);
 
     // Find the best token based on routeResult
-    const bestResult = validResults.reduce((max, current) => (current.route_result > max.route_result ? current : max), validResults[0]);
+    const bestResult = validResults.reduce((max, current) => (Number(current.route_result)  > Number(max.route_result) ? current : max), validResults[0]);
 
     console.log(`Best Token: ${bestResult.token} with Profit/Loss: ${bestResult.route_result}`);
     
@@ -296,7 +299,7 @@ async function run_swap() {
         // Finds the best token with best result
         const {bestToken, pnl} = await findbest( maxToken.toString(), maxBalance_eth.toString(), 0.005 );
         
-        if (pnl >= 0.00000) {
+        if (pnl && pnl >= 0.00000) {
             await swapExecute( maxToken.toString(), maxBalance_eth.toString(), bestToken.toString(), 0.005 );
         } else {
             console.log("Swap does not make sense. Profit/Loss is not positive.");
@@ -304,7 +307,7 @@ async function run_swap() {
         }
     } else {
         const {bestToken, pnl} = await findbest(maxToken.toString(), maxBalance.toString(), 0.005);
-        if (pnl >= 0.00000) {
+        if (pnl && pnl >= 0.00000) {
             await swapExecute(maxToken.toString(), maxBalance.toString(), bestToken.toString(), 0.005);
         } else {
             console.log("Swap does not make sense. Profit/Loss is not positive.");
